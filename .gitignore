@@ -1,6 +1,7 @@
 .gitignore
-Repos/*
-Data/*
-Pre-trained/*
-Models/*
+Repos/*/*
+Data/*.txt
+Data/*.csv
+Pre-trained/*/*
+Models/*/*
 
