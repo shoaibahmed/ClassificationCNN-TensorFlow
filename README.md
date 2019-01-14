@@ -1,7 +1,7 @@
 # ClassificationCNN-TF
 
 Implementation of complete CNN training pipeline in TensorFlow. The data reading mechanism is based on the TF Dataset API.
-<br/>The trainer currently supports six architectures including Inception ResNet v2 [1], ResNet-152 [1], NASNet [1], SE-ResNet-101 [2], SE-ResNeXt[2], and DenseNet-161 [3].
+<br/>The trainer currently supports six architectures including Inception ResNet v2 [1], ResNet-152 [1], NASNet [1], SE-ResNet-101 [2], SE-ResNeXt [2], and DenseNet-161 [3].
 
 <br/>To train on a custom dataset, create a separate file for train, test and validation containing the image names and the corresponding label ids (from 0 to num_classes-1).
 
@@ -40,17 +40,17 @@ Full description of flags below:
 | --learningRateDecayFactor | Learning rate decay factor | |
 | --earlyStopping | Enable early stopping | |
 | --earlyStoppingTolerance | Epoch tolerance for early stopping | |
-| --labelSmoothing | | |
-| --weightedSoftmax | | |
+| --labelSmoothing | Enable label smoothing | |
+| --weightedSoftmax | Enable softmax weighting | |
 | --trainingEpochs | Number of training epochs | |
 | --batchSize | Batch size | |
 | --displayStep | Frequency for statistics print during training | |
 | --lossFunction | Type of loss function for optimization | [cross-entropy, mse] |
 | --autoAugment | Enable Tensorflow Hub's Autoaugment pre-processing| |
 | --trainSVM | Train SVM on top of CNN features | |
-| --reconstructionRegularizer | | |
+| --reconstructionRegularizer | Enable autoencoder | |
 | --reconstructionRegularizationLambda | | |
-| --l2Regularizer | | |
+| --l2Regularizer | Enable regularization | |
 | --l2RegularizationLambda | | |
 | --decoderNumFilters | | |
 | --modelDir | Model output directory | |
@@ -73,15 +73,15 @@ Label|Category Name
 .
 ```
 
-**3rd Party Repos used:**
-https://github.com/chentinghao/download_google_drive
-https://github.com/tensorflow/models
-https://github.com/pudae/tensorflow-densenet
-https://github.com/HiKapok/TF-SENet
+### 3rd Party Repos used:
+https://github.com/chentinghao/download_google_drive \
+https://github.com/tensorflow/models \
+https://github.com/pudae/tensorflow-densenet \
+https://github.com/HiKapok/TF-SENet \
 
 <br/><br/> Author: <b>Shoaib Ahmed Siddiqui</b>
 <br/> Email: <b>12bscsssiddiqui@seecs.edu.pk</b>
 
-[1] https://github.com/tensorflow/models/tree/master/research/slim
-[2] https://github.com/HiKapok/TF-SENet
-[3] https://github.com/pudae/tensorflow-densenet
+[1] https://github.com/tensorflow/models/tree/master/research/slim \
+[2] https://github.com/HiKapok/TF-SENet \
+[3] https://github.com/pudae/tensorflow-densenet \
