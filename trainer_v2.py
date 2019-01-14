@@ -23,7 +23,8 @@ import os
 import Repos.models.research.slim.nets.inception_resnet_v2 as inception_resnet_v2
 import Repos.models.research.slim.nets.resnet_v1 as resnet_v1
 import Repos.models.research.slim.nets.nasnet.nasnet as nasnet
-import Repos.TFSENet.se_resnet as senet
+import Repos.TFSENet.se_resnet as se_resnet
+import Repos.TFSENet.se_resnext as se_resnext
 import Repos.tensorflow_densenet.nets.densenet as densenet
 
 import Repos.download_google_drive.download_gdrive as driveGet
@@ -48,7 +49,7 @@ parser.add_option("-t", "--trainModel", action="store_true", dest="trainModel", 
 parser.add_option("-c", "--testModel", action="store_true", dest="testModel", default=False, help="Test model")
 parser.add_option("-e", "--evalClasses", action="store_true", dest="evalClasses", default=False, help="Evaluate precision and recall per class")
 parser.add_option("-s", "--startTrainingFromScratch", action="store_true", dest="startTrainingFromScratch", default=False, help="Start training from scratch")
-parser.add_option("-r", "--startTrainingRandomly", action="store_true", dest="startTrainingRandomly", default=False, help="Train model with randomly initialized weights")
+parser.add_option("-r", "--startTrainingRandom", action="store_true", dest="startTrainingRandom", default=False, help="Train model with randomly initialized weights")
 parser.add_option("-v", "--tensorboardVisualization", action="store_true", dest="tensorboardVisualization", default=False, help="Enable tensorboard visualization")
 
 # Input Reader Params
@@ -70,7 +71,6 @@ parser.add_option("--labelSmoothing", action="store", type="float", dest="labelS
 parser.add_option("--weightedSoftmax", action="store_true", dest="weightedSoftmax", default=False, help="Use weighted softmax")
 parser.add_option("--trainingEpochs", action="store", type="int", dest="trainingEpochs", default=1, help="Training epochs")
 parser.add_option("--batchSize", action="store", type="int", dest="batchSize", default=5, help="Batch size")
-parser.add_option("--saveStep", action="store", type="int", dest="saveStep", default=1000, help="Progress save step")
 parser.add_option("--displayStep", action="store", type="int", dest="displayStep", default=5, help="Progress display step")
 parser.add_option("--lossFunction", action="store", type="string", dest="lossFunction", default="cross_entropy", help="Loss function to use for training")
 parser.add_option("--autoAugment", action="store_true", dest="autoAugment", default=False, help="Use google's Autoaugment pre-processing")
@@ -181,9 +181,9 @@ elif options.model == "DenseNet":
     # Update image sizes
     options.imageHeight = options.imageWidth = 224
 
-elif options.model == "SENet":
-    senet_checkpoint_file = os.path.join(baseDir, 'Pre-trained/seresnet101/se_resnet101.ckpt')
-    if not os.path.isfile(senet_checkpoint_file + '.index'):
+elif options.model == "SEResNet":
+    se_resnet_checkpoint_file = os.path.join(baseDir, 'Pre-trained/seresnet101/se_resnet101.ckpt')
+    if not os.path.isfile(se_resnet_checkpoint_file + '.index'):
         # Download file from the link
         id = '19QsGHNZC0BVsaDf4Sx79J2Hl2BV9wpRm'
         filename = './Pre-trained/seresnet101.tar.gz'
@@ -192,6 +192,24 @@ elif options.model == "SENet":
         # Extract the tar file
         tar = tarfile.open(filename)
         tar.extractall('./Pre-trained/seresnet101/')
+        tar.close()
+        
+        os.remove(filename)
+    
+    # Update image sizes
+    options.imageHeight = options.imageWidth = 224
+
+elif options.model == "SEResNeXt":
+    se_resnext_checkpoint_file = os.path.join(baseDir, 'Pre-trained/seresnext101/se_resnext101.ckpt')
+    if not os.path.isfile(se_resnext_checkpoint_file + '.index'):
+        # Download file from the link
+        id = '1AEYDWTWEGh6xGN-fSFB_f94FujdTJyKS'
+        filename = './Pre-trained/seresnext101.tar.gz'
+        driveGet.download_file_from_google_drive(id, filename)
+        
+        # Extract the tar file
+        tar = tarfile.open(filename)
+        tar.extractall('./Pre-trained/seresnext101/')
         tar.close()
         
         os.remove(filename)
@@ -533,7 +551,7 @@ elif options.model == "DenseNet":
     # Last layer for extraction of features before global pool
     featureVector = tf.get_default_graph().get_tensor_by_name("densenet161/dense_block4/conv_block24/concat:0")
 
-elif options.model == "SENet":
+elif options.model == "SEResNet":
     if options.useImageMean:
         imageMean = tf.reduce_mean(inputBatchImages, axis=[1, 2], keepdims=True)
         print("Image mean shape: %s" % str(imageMean.shape))
@@ -546,12 +564,38 @@ elif options.model == "SENet":
         processedInputBatchImages = tf.concat(axis=3, values=channels)
         print(processedInputBatchImages.shape)
 
-    # Convert RGB to BGR for SENet input
+    # Convert RGB to BGR for SEResNet input
     processedInputBatchImages = tf.reverse(processedInputBatchImages, [-1])
 
     # Create model
-    logits, _ = senet.SE_ResNet(processedInputBatchImages, numClasses, is_training=options.trainModel,
-                                data_format='channels_last')
+    logits, _ = se_resnet.SE_ResNet(processedInputBatchImages, numClasses, is_training=options.trainModel,
+                                    data_format='channels_last')
+
+    # Create list of vars to restore before train op (exclude the logits due to change in number of classes)
+    variables_to_restore = slim.get_variables_to_restore(exclude=["dense", "global_step"])
+
+    # Last layer for extraction of features
+    featureVector = tf.get_default_graph().get_tensor_by_name("conv5_3/relu:0")
+    
+elif options.model == "SEResNeXt":
+    if options.useImageMean:
+        imageMean = tf.reduce_mean(inputBatchImages, axis=[1, 2], keepdims=True)
+        print("Image mean shape: %s" % str(imageMean.shape))
+        processedInputBatchImages = inputBatchImages - imageMean
+    else:
+        print(inputBatchImages.shape)
+        channels = tf.split(axis=3, num_or_size_splits=options.imageChannels, value=inputBatchImages)
+        for i in range(options.imageChannels):
+            channels[i] -= IMAGENET_MEAN[i]
+        processedInputBatchImages = tf.concat(axis=3, values=channels)
+        print(processedInputBatchImages.shape)
+
+    # Convert RGB to BGR for SEResNext input
+    processedInputBatchImages = tf.reverse(processedInputBatchImages, [-1])
+
+    # Create model
+    logits, _ = se_resnext.SE_ResNeXt(processedInputBatchImages, numClasses, is_training=options.trainModel,
+                                    data_format='channels_last')
 
     # Create list of vars to restore before train op (exclude the logits due to change in number of classes)
     variables_to_restore = slim.get_variables_to_restore(exclude=["dense", "global_step"])
@@ -674,13 +718,13 @@ if options.trainModel:
             os.system("rm -rf " + options.modelDir)
             os.system("mkdir " + options.modelDir)
 
-            checkpointFileName = resnet_checkpoint_file if options.model == "ResNet" else senet_checkpoint_file if options.model == "SENet" else densenet_checkpoint_file if options.model == "DenseNet" else inc_res_v2_checkpoint_file if options.model == "IncResV2" else nas_checkpoint_file
+            checkpointFileName = resnet_checkpoint_file if options.model == "ResNet" else se_resnet_checkpoint_file if options.model == "SEResNet" else se_resnext_checkpoint_file if options.model == "SEResNeXt" else densenet_checkpoint_file if options.model == "DenseNet" else inc_res_v2_checkpoint_file if options.model == "IncResV2" else nas_checkpoint_file
             print("Restoring weights from file: %s" % (checkpointFileName))
 
             # Load the imagenet pre-trained model
             restorer = tf.train.Saver(variables_to_restore)
             restorer.restore(sess, checkpointFileName)
-        elif options.startTrainingRandomly:
+        elif options.startTrainingRandom:
             # Train model from scratch, without pre-trained weights, but with random initialization
             pass
         else:
