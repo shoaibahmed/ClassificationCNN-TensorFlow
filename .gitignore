@@ -1,0 +1,7 @@
+.gitignore
+Repos/*/*
+Data/*.txt
+Data/*.csv
+Pre-trained/*/*
+Models/*/*
+
